@@ -3,6 +3,7 @@ pancake =  require "pancake"
 local screen
 local on
 local off
+local music
 
 local highscore = 0
 local score = 0
@@ -27,6 +28,7 @@ local function addBitButton(x, y, position, key)
 	button.func = function()
 		toggleBit(position)
 		button.toggled = not button.toggled
+		pancake.playSound("blip", false)
 	end
 	buttons[position] = button
 	return button
@@ -63,11 +65,18 @@ local function spawnNumber()
 end
 
 local function drawLegend(x, y)
-	local scale = pancake.window.pixelSize / 8
-	pancake.print("Keybinds:", pancake.window.x + x * pancake.window.pixelSize, pancake.window.y + y * pancake.window.pixelSize, scale)
-	pancake.print("Press \"Escape\" to quit the game", pancake.window.x + x * pancake.window.pixelSize, pancake.window.y + (y + 1.1) * pancake.window.pixelSize, scale)
-	pancake.print("Press \"1\" to \"8\" to set bits, left to right", pancake.window.x + x * pancake.window.pixelSize, pancake.window.y + (y + 2.2) * pancake.window.pixelSize, scale)
-	pancake.print("The Red Bit Boxes are also clickable buttons!", pancake.window.x + x * pancake.window.pixelSize, pancake.window.y + (y + 3.2) * pancake.window.pixelSize, scale)
+	local scale = pancake.window.pixelSize / 4
+	pancake.print("Keybinds:", pancake.window.x + x * pancake.window.pixelSize, pancake.window.y + y * pancake.window.pixelSize, scale * 2)
+
+	pancake.print(": Press \"Escape\"", pancake.window.x + x * pancake.window.pixelSize, pancake.window.y + (y + 5) * pancake.window.pixelSize, scale)
+	pancake.print("  to quit!", pancake.window.x + x * pancake.window.pixelSize, pancake.window.y + (y + 8) * pancake.window.pixelSize, scale)
+
+	pancake.print(": Press \"1\" to \"8\"", pancake.window.x + x * pancake.window.pixelSize, pancake.window.y + (y + 13) * pancake.window.pixelSize, scale)
+	pancake.print("  to set bits from", pancake.window.x + x * pancake.window.pixelSize, pancake.window.y + (y + 16) * pancake.window.pixelSize, scale)
+	pancake.print("  left to right", pancake.window.x + x * pancake.window.pixelSize, pancake.window.y + (y + 19) * pancake.window.pixelSize, scale)
+
+	pancake.print("The Red Buttons", pancake.window.x + (x + 1) * pancake.window.pixelSize, pancake.window.y + (y + 33) * pancake.window.pixelSize, scale)
+	pancake.print("also set bits", pancake.window.x + (x + 1) * pancake.window.pixelSize, pancake.window.y + (y + 36) * pancake.window.pixelSize, scale)
 end
 
 local function drawBit(x, y, position)
@@ -77,7 +86,6 @@ local function drawBit(x, y, position)
 	else
 		drawText(tostring(b), x, y)
 	end
-	drawText("!", x + 1.5, y + 6)
 end
 
 function toggleBit(position)
@@ -90,6 +98,10 @@ function love.load()
 	screen = pancake.addImage("screen", "images")
 	on = pancake.addImage("on", "images")
 	off = pancake.addImage("off", "images")
+
+	pancake.addSound("hit", "sounds")
+	pancake.addSound("blip", "sounds")
+	pancake.addSound("lose", "sounds")
 
 	if love.filesystem.getInfo("highscore.sav") then
         highscore = pancake.load("highscore.sav", "table").value
@@ -115,22 +127,26 @@ function love.draw()
 
 	if not active then return end
 
-	drawLegend(64.25, 28)
+	drawLegend(64.25, 16)
 
 	if before_spawn then
 		drawText("Match Binary", 32 - pancake.getStringWidth("Match Binary") / 2, 14)
 		drawText("to Numbers", 32 - pancake.getStringWidth("to Numbers") / 2, 20)
 		drawText("to Score!", 32 - pancake.getStringWidth("to Score!") / 2, 26)
 
-		drawBit(5, 39, 7)
-		drawBit(12, 39, 6)
-		drawBit(19, 39, 5)
-		drawBit(26, 39, 4)
+		if current_binary == 69 then
+			drawText("Nice!", 32 - pancake.getStringWidth("Nice!") / 2, 32)
+		end
 
-		drawBit(34, 39, 3)
-		drawBit(41, 39, 2)
-		drawBit(48, 39, 1)
-		drawBit(55, 39, 0)
+		drawBit(5, 40, 7)
+		drawBit(12, 40, 6)
+		drawBit(19, 40, 5)
+		drawBit(26, 40, 4)
+
+		drawBit(34, 40, 3)
+		drawBit(41, 40, 2)
+		drawBit(48, 40, 1)
+		drawBit(55, 40, 0)
 	end
 
 	if not game_over then
@@ -163,6 +179,8 @@ function love.draw()
 			pancake.save({value = highscore}, "highscore.sav")
 		end
 
+		love.graphics.draw(screen, pancake.window.x, pancake.window.y, 0, pancake.window.pixelSize)
+
 		local score_str = "Score: " .. tostring(score)
 		local highscore_str = "Highscore: " .. tostring(highscore)
 		drawText("Game Over!", 32 - pancake.getStringWidth("Game Over!") / 2, 10)
@@ -193,9 +211,11 @@ function love.update(dt)
 			pancake.trash(numbers, number.ID, "ID")
 			score = score + 1
 			spawn_interval = math.max(4, base_spawn_interval - (score * 0.2))
-			speed = base_speed + (score * 0.1)
-		elseif number.y >= pancake.window.y + 45 * pancake.window.pixelSize then
+			speed = speed + (score * 0.1)
+			pancake.playSound("hit", false, 1.5)
+		elseif number.y >= pancake.window.y + 41.1 * pancake.window.pixelSize then
 			game_over = true
+			pancake.playSound("lose", false, 2)
 		end
 	end
 end
